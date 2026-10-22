@@ -1,22 +1,18 @@
-import hashlib
-import json
 import os
-import re
-import secrets
-import smtplib
-import threading
-from datetime import datetime, timedelta
-from email.message import EmailMessage
-from urllib.parse import quote
+import mysql.connector
+from flask import Flask, jsonify, redirect, request, send_from_directory
+from flask_login import (
+    LoginManager, UserMixin, current_user,
+    login_required, login_user, logout_user
+)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 try:
-    import pymysql
-    pymysql.install_as_MySQLdb()
-    import MySQLdb as mysql
-    # Esto engaña al código para que use pymysql como si fuera mysql.connector
-    mysql.connector = mysql
+    from dotenv import load_dotenv
+    load_dotenv()
 except ImportError:
-    import mysql.connector
+    pass
+
 
 
 CARPETA_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
