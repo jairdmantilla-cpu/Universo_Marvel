@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marvel Login</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <div class="barra-auth">
+    <a class="logo" href="home.html">MARVEL</a>
+    <div class="titulo-centro">JAC MARVEL</div>
+    <div class="enlaces"><a href="home.html">Home</a><a href="#">Contact Us</a></div>
+  </div>
+
+  <div class="pantalla-login" style="background-image: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url('img/fondo_login.jpg');">
+    <form class="caja-auth" id="formLogin">
+      <h2>Login</h2>
+      <p id="aviso" style="display:none; color:#ffb4b4; margin:0 0 10px;"></p>
+      <input type="email" id="correo" placeholder="Correo electrónico" required>
+      <input type="password" id="clave" placeholder="Contraseña" required>
+      <button class="boton-rojo" type="submit">Iniciar</button>
+      <div class="enlaces-caja">
+        <a href="registro.html">¿No tienes cuenta? Crea una cuenta</a>
+        <a href="recuperar.html">¿Olvidaste tu contraseña?</a>
+      </div>
+    </form>
+  </div>
+
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    // Lleva a cada tipo de usuario a su página
+    function irSegunRol(rol) {
+      if (rol === "admin" || rol === "admin-content" || rol === "admin-sales") {
+        location.href = "admin.html";
+      } else {
+        location.href = "inicio.html";
+      }
+    }
+
+    // Página a la que volver después de entrar (solo páginas del propio sitio)
+    function paginaSiguiente(rol) {
+      const siguiente = new URLSearchParams(location.search).get("siguiente");
+      if (siguiente && /^[\w-]+\.html(\?[\w=&.-]*)?$/.test(siguiente)) {
+        return siguiente;
+      }
+      return rol === "user" ? "inicio.html" : "admin.html";
+    }
+    if (new URLSearchParams(location.search).get("motivo") === "comprar") {
+      const aviso = document.getElementById("aviso");
+      aviso.textContent = "Inicia sesión o crea una cuenta para comprar en la tienda.";
+      aviso.style.display = "block";
+    }
+    // Los enlaces de abajo conservan la página a la que se quería volver
+    const extra = location.search;
+    document.querySelectorAll(".enlaces-caja a")[0].href = "registro.html" + extra;
+    async function iniciarSesion(correo, clave) {
+      const r = await api("/api/login", "POST", { correo: correo, clave: clave });
+      if (!r.ok) {
+        alert(r.error || "No se pudo iniciar sesión");
+        return;
+      }
+      location.href = paginaSiguiente(r.rol);
+    }
+    document.getElementById("formLogin").addEventListener("submit", function (evento) {
+      evento.preventDefault(); // evita que la página se recargue
+      iniciarSesion(document.getElementById("correo").value.trim(), document.getElementById("clave").value);
+    });
+  </script>
+</body>
+</html>

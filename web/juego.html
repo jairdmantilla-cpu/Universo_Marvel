@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juego - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body style="background:#111;">
+  <div id="menu"></div>
+
+  <div id="detalleJuego">
+    <div class="detalle">
+      <div><img class="portada" id="poster" src="" alt=""></div>
+      <div class="info">
+        <h1 id="titulo"></h1>
+        <p id="datosBasicos"></p>
+        <p id="descripcionCompleta"></p>
+        <p id="empresas"></p>
+        <p id="plataformas"></p>
+        <h3>Características</h3>
+        <ul id="caracteristicas"></ul>
+        <p><a class="boton-rojo" href="juegos.html">Volver a juegos</a></p>
+      </div>
+    </div>
+
+    <div class="zona-video">
+      <video id="video" controls playsinline preload="metadata"></video>
+    </div>
+
+    <div class="requisitos">
+      <div class="tarjeta">
+        <h3>Requisitos mínimos</h3>
+        <div id="requisitosMinimos"></div>
+      </div>
+      <div class="tarjeta">
+        <h3>Requisitos recomendados</h3>
+        <div id="requisitosRecomendados"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="detalle" id="noEncontrado" style="display:none;">Juego no encontrado. <a href="juegos.html"><u>Volver</u></a></p>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    cargarMenu("juegos.html");
+
+    // Escribe la lista de requisitos dentro de un <div>
+    function dibujarRequisitos(idDiv, requisitos) {
+      const html =
+        "<p><b>Sistema:</b> " + requisitos.sistema + "</p>" +
+        "<p><b>Procesador:</b> " + requisitos.procesador + "</p>" +
+        "<p><b>Memoria:</b> " + requisitos.memoria + "</p>" +
+        "<p><b>Gráficos:</b> " + requisitos.grafica + "</p>" +
+        "<p><b>Almacenamiento:</b> " + requisitos.almacenamiento + "</p>";
+      document.getElementById(idDiv).innerHTML = html;
+    }
+
+    const juego = buscarPorId(juegos, leerIdDeLaUrl());
+
+    if (juego === null) {
+      document.getElementById("detalleJuego").style.display = "none";
+      document.getElementById("noEncontrado").style.display = "block";
+    } else {
+      document.title = juego.titulo;
+      document.getElementById("poster").src = juego.poster;
+      document.getElementById("titulo").textContent = juego.titulo;
+      document.getElementById("datosBasicos").textContent =
+        "⭐ " + juego.calificacion + "/5 · " + juego.fecha + " · " + juego.jugadores;
+      document.getElementById("descripcionCompleta").textContent = juego.descripcionCompleta;
+      document.getElementById("empresas").innerHTML =
+        "<b>Desarrollador:</b> " + juego.desarrollador + " · <b>Distribuidor:</b> " + juego.distribuidor;
+      document.getElementById("video").src = juego.video;
+
+      // Plataformas (gris) y géneros (azul)
+      let etiquetas = "";
+      for (let i = 0; i < juego.plataformas.length; i++) {
+        etiquetas += '<span class="etiqueta">' + juego.plataformas[i] + "</span>";
+      }
+      for (let i = 0; i < juego.generos.length; i++) {
+        etiquetas += '<span class="etiqueta azul">' + juego.generos[i] + "</span>";
+      }
+      document.getElementById("plataformas").innerHTML = etiquetas;
+
+      // Lista de características
+      let lista = "";
+      for (let i = 0; i < juego.caracteristicas.length; i++) {
+        lista += "<li>" + juego.caracteristicas[i] + "</li>";
+      }
+      document.getElementById("caracteristicas").innerHTML = lista;
+
+      dibujarRequisitos("requisitosMinimos", juego.requisitosMinimos);
+      dibujarRequisitos("requisitosRecomendados", juego.requisitosRecomendados);
+    }
+  </script>
+</body>
+</html>

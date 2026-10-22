@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Información del Cómic</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body style="background:#111;">
+  <div id="menu"></div>
+
+  <div class="detalle" id="detalleComic">
+    <div><img class="portada" id="portada" src="" alt=""></div>
+    <div class="info">
+      <h1 id="titulo"></h1>
+      <h3>Año</h3>
+      <p id="anio"></p>
+      <h3>Autor</h3>
+      <p id="autor"></p>
+      <h3>Descripción</h3>
+      <p id="sinopsis"></p>
+      <h3>Personajes principales</h3>
+      <p id="personajesComic"></p>
+      <p><a class="boton-rojo" href="inicio.html">Volver</a></p>
+    </div>
+  </div>
+
+  <p class="detalle" id="noEncontrado" style="display:none;">Cómic no encontrado. <a href="inicio.html"><u>Volver</u></a></p>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    cargarMenu("inicio.html");
+
+    // Buscamos el cómic con el id que viene en la dirección (comic.html?id=2)
+    const comic = buscarPorId(comics, leerIdDeLaUrl());
+
+    if (comic === null) {
+      document.getElementById("detalleComic").style.display = "none";
+      document.getElementById("noEncontrado").style.display = "block";
+    } else {
+      document.title = comic.titulo;
+      document.getElementById("portada").src = comic.imagen;
+      document.getElementById("titulo").textContent = comic.titulo;
+      document.getElementById("titulo").style.color = comic.colorTitulo;
+      document.getElementById("anio").textContent = comic.anio;
+      document.getElementById("autor").textContent = comic.autor;
+      document.getElementById("sinopsis").textContent = comic.sinopsis;
+      document.getElementById("personajesComic").textContent = comic.personajes;
+    }
+  </script>
+</body>
+</html>

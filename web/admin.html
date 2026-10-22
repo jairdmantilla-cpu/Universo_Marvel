@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="menu"></div>
+
+  <div class="contenido">
+    <h1>Panel de administración <small class="gris" id="tipoAdmin"></small></h1>
+
+    <!-- SECCIÓN 1: usuarios y contenido (admin y admin-content) -->
+    <div id="seccionContenido">
+      <h2>Usuarios</h2>
+      <form class="tarjeta fila" id="formUsuario">
+        <input type="text" id="nuevoNombre" placeholder="Nombre" required style="flex: 1;">
+        <input type="email" id="nuevoCorreo" placeholder="Correo" required style="flex: 1;">
+        <input type="text" id="nuevaClave" placeholder="Contraseña" required style="flex: 1;">
+        <button class="boton-rojo" type="submit">Crear usuario</button>
+      </form>
+      <div id="tablaUsuarios"></div>
+
+      <h2>Contenido</h2>
+      <label>Tipo de contenido
+        <select id="tipoContenido" onchange="dibujarContenido()">
+          <option value="ucm">Cronología UCM</option>
+          <option value="personajes">Personajes</option>
+          <option value="juegos">Juegos</option>
+          <option value="tienda">Tienda</option>
+        </select>
+      </label>
+      <form class="tarjeta fila" id="formContenido">
+        <input type="text" id="textoContenido" placeholder="Nuevo elemento" required style="flex: 1;">
+        <button class="boton-rojo" type="submit">Agregar</button>
+      </form>
+      <div id="listaContenido"></div>
+
+      <h2>Orden del catálogo</h2>
+      <div class="fila">
+        <select id="catalogo" style="width: 220px;">
+          <option>Popular</option>
+          <option>Recientes</option>
+          <option>Recomendados</option>
+        </select>
+        <button class="boton-rojo" onclick="guardarCatalogo()">Guardar</button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: ventas y suscripciones (admin y admin-sales) -->
+    <div id="seccionVentas">
+      <h2>Ventas</h2>
+      <div class="estadisticas" id="estadisticas"></div>
+      <div class="tabla-scroll" id="tablaVentas"></div>
+
+      <h2>Suscripciones</h2>
+      <div class="tabla-scroll" id="tablaSuscripciones"></div>
+    </div>
+  </div>
+
+  <!-- Ventana emergente: detalle de una venta -->
+  <div class="fondo-modal oculto" id="modalVenta" onclick="cerrarVenta()">
+    <div class="ventana" onclick="event.stopPropagation()">
+      <div id="detalleVenta"></div>
+      <br>
+      <button onclick="cerrarVenta()">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    const sesion = exigirSesion();
+    cargarMenu("admin.html");
+
+    // Solo entran los administradores
+    if (sesion.rol === "user") {
+      alert("Acceso denegado");
+      location.href = "inicio.html";
+    }
+    document.getElementById("tipoAdmin").textContent = "(" + sesion.rol + ")";
+
+    // Según el rol mostramos u ocultamos cada sección
+    if (sesion.rol === "admin-sales") {
+      document.getElementById("seccionContenido").style.display = "none";
+    }
+    if (sesion.rol === "admin-content") {
+      document.getElementById("seccionVentas").style.display = "none";
+    }
+
+    const estadosVenta = ["pendiente", "completada", "cancelada"];
+    const estadosSuscripcion = ["activa", "cancelada", "vencida"];
+
+    // Pone la primera letra en mayúscula (pendiente -> Pendiente)
+    function mayuscula(texto) {
+      return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    // Crea un <select> con los estados posibles. Al cambiarlo llama a "funcion"
+    function crearSelectorEstado(opciones, estadoActual, funcion, id) {
+      let html = '<select onchange="' + funcion + "('" + id + "', this.value)\">";
+      for (let i = 0; i < opciones.length; i++) {
+        let seleccionada = "";
+        if (opciones[i] === estadoActual) {
+          seleccionada = "selected";
+        }
+        html += '<option value="' + opciones[i] + '" ' + seleccionada + ">" + mayuscula(opciones[i]) + "</option>";
+      }
+      return html + "</select>";
+    }
+
+    // =============== USUARIOS (vienen de MySQL) ===============
+    async function dibujarUsuarios() {
+      const r = await api("/api/admin/usuarios");
+      const cuadro = document.getElementById("tablaUsuarios");
+      if (!r.ok) {
+        cuadro.innerHTML = '<p class="gris">' + escapar(r.error || "No se pudo cargar la lista") + "</p>";
+        return;
+      }
+      if (r.usuarios.length === 0) {
+        cuadro.innerHTML = '<p class="gris">No hay usuarios registrados.</p>';
+        return;
+      }
+      let html = "<table><tr><th>Nombre</th><th>Correo</th><th></th></tr>";
+      for (let i = 0; i < r.usuarios.length; i++) {
+        const u = r.usuarios[i];
+        html += "<tr>";
+        html += "<td>" + escapar(u.nombre) + "</td>";
+        html += "<td>" + escapar(u.correo) + "</td>";
+        html += '<td><button onclick="eliminarUsuario(' + u.id + ', this.dataset.correo)" data-correo="' + escapar(u.correo) + '">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      cuadro.innerHTML = html + "</table>";
+    }
+
+    document.getElementById("formUsuario").addEventListener("submit", async function (evento) {
+      evento.preventDefault();
+      const r = await api("/api/admin/usuarios", "POST", {
+        nombre: document.getElementById("nuevoNombre").value.trim(),
+        correo: document.getElementById("nuevoCorreo").value.trim(),
+        clave: document.getElementById("nuevaClave").value
+      });
+      if (!r.ok) {
+        alert(r.error || "No se pudo crear el usuario");
+        return;
+      }
+      document.getElementById("formUsuario").reset();
+      dibujarUsuarios();
+    });
+
+    async function eliminarUsuario(id, correo) {
+      if (confirm("¿Eliminar al usuario " + correo + "?")) {
+        await api("/api/admin/usuarios/" + id, "DELETE");
+        dibujarUsuarios();
+      }
+    }
+
+    // =============== CONTENIDO ===============
+    // Cada tipo de contenido se guarda en su propia lista: contenido_ucm, contenido_juegos...
+    function claveContenido() {
+      return "contenido_" + document.getElementById("tipoContenido").value;
+    }
+
+    function dibujarContenido() {
+      const lista = leer(claveContenido(), []);
+      let html = "";
+      for (let i = 0; i < lista.length; i++) {
+        html += '<div class="tarjeta">' + escapar(lista[i]);
+        html += ' <button style="float: right;" onclick="eliminarContenido(' + i + ')">Eliminar</button></div>';
+      }
+      if (html === "") {
+        html = '<p class="gris">Sin elementos.</p>';
+      }
+      document.getElementById("listaContenido").innerHTML = html;
+    }
+
+    document.getElementById("formContenido").addEventListener("submit", function (evento) {
+      evento.preventDefault();
+      const lista = leer(claveContenido(), []);
+      lista.push(document.getElementById("textoContenido").value.trim());
+      guardar(claveContenido(), lista);
+      document.getElementById("formContenido").reset();
+      dibujarContenido();
+    });
+
+    function eliminarContenido(posicion) {
+      const lista = leer(claveContenido(), []);
+      lista.splice(posicion, 1);
+      guardar(claveContenido(), lista);
+      dibujarContenido();
+    }
+
+    function guardarCatalogo() {
+      guardar("catalogo", document.getElementById("catalogo").value);
+      alert("Catálogo guardado");
+    }
+
+    // =============== VENTAS ===============
+    function dibujarEstadisticas() {
+      const ventas = leer("ventas", []);
+      const suscripciones = leer("suscripciones", []);
+      let ingresos = 0;
+      let pendientes = 0;
+      let activas = 0;
+      for (let i = 0; i < ventas.length; i++) {
+        if (ventas[i].estado === "completada") {
+          ingresos += ventas[i].total;
+        }
+        if (ventas[i].estado === "pendiente") {
+          pendientes++;
+        }
+      }
+      for (let i = 0; i < suscripciones.length; i++) {
+        if (suscripciones[i].estado === "activa") {
+          activas++;
+        }
+      }
+      document.getElementById("estadisticas").innerHTML =
+        '<div class="tarjeta"><b>' + dinero(ingresos) + '</b>Ingresos (completadas)</div>' +
+        '<div class="tarjeta"><b>' + ventas.length + '</b>Ventas</div>' +
+        '<div class="tarjeta"><b>' + pendientes + '</b>Pendientes</div>' +
+        '<div class="tarjeta"><b>' + activas + '</b>Suscripciones activas</div>';
+    }
+
+    function dibujarVentas() {
+      const ventas = leer("ventas", []);
+      let html = "<table><tr><th>ID</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Estado</th><th></th></tr>";
+      for (let i = 0; i < ventas.length; i++) {
+        const v = ventas[i];
+        html += "<tr>";
+        html += "<td>" + v.id + "</td>";
+        html += "<td>" + escapar(v.cliente) + "<br><small class='gris'>" + escapar(v.correo) + "</small></td>";
+        html += "<td>" + dinero(v.total) + "</td>";
+        html += "<td>" + v.fecha + "</td>";
+        html += "<td>" + crearSelectorEstado(estadosVenta, v.estado, "cambiarEstadoVenta", v.id) + "</td>";
+        html += '<td><button onclick="verVenta(\'' + v.id + '\')">Detalle</button> ';
+        html += '<button onclick="eliminarVenta(\'' + v.id + '\')">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      document.getElementById("tablaVentas").innerHTML = html + "</table>";
+    }
+
+    function cambiarEstadoVenta(id, estadoNuevo) {
+      const ventas = leer("ventas", []);
+      for (let i = 0; i < ventas.length; i++) {
+        if (ventas[i].id === id) {
+          ventas[i].estado = estadoNuevo;
+        }
+      }
+      guardar("ventas", ventas);
+      dibujarTodoVentas();
+    }
+
+    function eliminarVenta(id) {
+      if (!confirm("¿Eliminar esta venta?")) {
+        return;
+      }
+      const ventas = leer("ventas", []).filter(function (v) { return v.id !== id; });
+      guardar("ventas", ventas);
+      dibujarTodoVentas();
+    }
+
+    function verVenta(id) {
+      const venta = buscarPorId(leer("ventas", []), id);
+      let html = "<h2>Venta " + venta.id + "</h2>";
+      html += "<p>" + escapar(venta.cliente) + " · " + escapar(venta.correo) + "<br>" + venta.fecha + " · " + mayuscula(venta.estado) + "</p>";
+      for (let i = 0; i < venta.productos.length; i++) {
+        const p = venta.productos[i];
+        html += "<p>" + p.nombre + " ×" + p.cantidad + " — " + dinero(p.precio * p.cantidad) + "</p>";
+      }
+      html += "<b>Total: " + dinero(venta.total) + "</b>";
+      document.getElementById("detalleVenta").innerHTML = html;
+      document.getElementById("modalVenta").classList.remove("oculto");
+    }
+
+    function cerrarVenta() {
+      document.getElementById("modalVenta").classList.add("oculto");
+    }
+
+    // =============== SUSCRIPCIONES ===============
+    function dibujarSuscripciones() {
+      const suscripciones = leer("suscripciones", []);
+      let html = "<table><tr><th>ID</th><th>Usuario</th><th>Plan</th><th>Precio</th><th>Inicio</th><th>Estado</th><th></th></tr>";
+      for (let i = 0; i < suscripciones.length; i++) {
+        const s = suscripciones[i];
+        html += "<tr>";
+        html += "<td>" + s.id + "</td>";
+        html += "<td>" + escapar(s.usuario) + "<br><small class='gris'>" + escapar(s.correo) + "</small></td>";
+        html += "<td>" + s.plan + "</td>";
+        html += "<td>" + dinero(s.precio) + "</td>";
+        html += "<td>" + s.inicio + "</td>";
+        html += "<td>" + crearSelectorEstado(estadosSuscripcion, s.estado, "cambiarEstadoSuscripcion", s.id) + "</td>";
+        html += '<td><button onclick="eliminarSuscripcion(\'' + s.id + '\')">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      document.getElementById("tablaSuscripciones").innerHTML = html + "</table>";
+    }
+
+    function cambiarEstadoSuscripcion(id, estadoNuevo) {
+      const suscripciones = leer("suscripciones", []);
+      for (let i = 0; i < suscripciones.length; i++) {
+        if (suscripciones[i].id === id) {
+          suscripciones[i].estado = estadoNuevo;
+        }
+      }
+      guardar("suscripciones", suscripciones);
+      dibujarTodoVentas();
+    }
+
+    function eliminarSuscripcion(id) {
+      if (!confirm("¿Eliminar esta suscripción?")) {
+        return;
+      }
+      const suscripciones = leer("suscripciones", []).filter(function (s) { return s.id !== id; });
+      guardar("suscripciones", suscripciones);
+      dibujarTodoVentas();
+    }
+
+    // Vuelve a dibujar las tres partes de la sección de ventas
+    function dibujarTodoVentas() {
+      dibujarEstadisticas();
+      dibujarVentas();
+      dibujarSuscripciones();
+    }
+
+    // =============== AL ABRIR LA PÁGINA ===============
+    document.getElementById("catalogo").value = leer("catalogo", "Popular");
+    dibujarUsuarios();
+    dibujarContenido();
+    dibujarTodoVentas();
+  </script>
+</body>
+</html>

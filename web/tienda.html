@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tienda Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="menu"></div>
+
+  <div class="contenido">
+    <h1>Tienda</h1>
+    <div class="chips" id="botonesCategorias"></div>
+    <div class="rejilla" id="listaProductos"></div>
+  </div>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    cargarMenu("tienda.html");
+
+    let categoriaElegida = "Todos";
+
+    // Lista de categorías sin repetir: Todos, Figuras, Posters...
+    function obtenerCategorias() {
+      const categorias = ["Todos"];
+      for (let i = 0; i < productos.length; i++) {
+        if (!categorias.includes(productos[i].categoria)) {
+          categorias.push(productos[i].categoria);
+        }
+      }
+      return categorias;
+    }
+
+    function dibujarCategorias() {
+      const categorias = obtenerCategorias();
+      let html = "";
+      for (let i = 0; i < categorias.length; i++) {
+        let clase = "";
+        if (categorias[i] === categoriaElegida) {
+          clase = "activo";
+        }
+        html += '<button class="' + clase + '" onclick="elegirCategoria(\'' + categorias[i] + '\')">' + categorias[i] + "</button>";
+      }
+      document.getElementById("botonesCategorias").innerHTML = html;
+    }
+
+    function dibujarProductos() {
+      let html = "";
+      for (let i = 0; i < productos.length; i++) {
+        const p = productos[i];
+
+        // Saltamos los productos que no son de la categoría elegida
+        if (categoriaElegida !== "Todos" && p.categoria !== categoriaElegida) {
+          continue;
+        }
+
+        const stock = stockDisponible(p);
+        html += '<div class="tarjeta">';
+        html += '  <img src="' + p.imagen + '" alt="">';
+        html += '  <h4>' + p.nombre + '</h4>';
+        html += '  <p class="gris">' + p.descripcion + '</p>';
+        if (p.precio === 0) {
+          html += '  <p class="precio">Gratis</p>';
+        } else {
+          html += '  <p class="precio">' + dinero(p.precio) + '</p>';
+        }
+
+        if (stock === 0) {
+          html += '  <button disabled>Agotado</button>';
+        } else {
+          html += '  <button class="boton-rojo" onclick="agregarAlCarrito(' + p.id + ')">Agregar al carrito</button>';
+          if (stock <= 3) {
+            html += '  <small class="aviso">¡Quedan ' + stock + '!</small>';
+          }
+        }
+        html += '</div>';
+      }
+      document.getElementById("listaProductos").innerHTML = html;
+    }
+
+    function elegirCategoria(categoria) {
+      categoriaElegida = categoria;
+      dibujarCategorias();
+      dibujarProductos();
+    }
+
+    function agregarAlCarrito(id) {
+      // Para comprar hay que haber iniciado sesión (como en Mercado Libre)
+      if (!obtenerSesion()) {
+        irALogin("comprar");
+        return;
+      }
+      const producto = buscarPorId(productos, id);
+      const carrito = leer("carrito", []);
+
+      // ¿El producto ya estaba en el carrito?
+      let itemExistente = null;
+      for (let i = 0; i < carrito.length; i++) {
+        if (carrito[i].id === id) {
+          itemExistente = carrito[i];
+        }
+      }
+
+      if (itemExistente === null) {
+        carrito.push({ id: id, cantidad: 1 });
+      } else {
+        if (itemExistente.cantidad >= stockDisponible(producto)) {
+          alert("No hay más unidades disponibles");
+          return;
+        }
+        itemExistente.cantidad++;
+      }
+
+      guardar("carrito", carrito);
+      alert(producto.nombre + " agregado al carrito");
+      cargarMenu("tienda.html"); // actualiza el número del carrito
+    }
+
+    dibujarCategorias();
+    dibujarProductos();
+  </script>
+</body>
+</html>

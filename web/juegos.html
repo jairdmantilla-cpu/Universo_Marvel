@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juegos Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="menu"></div>
+
+  <div class="banner-juegos" style="background-image: url('img/fondo_juegos.jpg');">
+    Explora el Universo Marvel
+  </div>
+
+  <div class="lista-juegos" id="listaJuegos"></div>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    cargarMenu("juegos.html");
+
+    // Una tarjeta por cada juego: póster, texto y video
+    let html = "";
+    for (let i = 0; i < juegos.length; i++) {
+      const juego = juegos[i];
+      html += '<div class="juego">';
+      html += '  <div class="poster"><img src="' + juego.poster + '" alt=""></div>';
+      html += '  <div class="texto">';
+      html += '    <h2>' + juego.titulo + '</h2>';
+      html += '    <p>' + juego.descripcion + '</p>';
+      html += '    <a class="boton-rojo" href="juego.html?id=' + juego.id + '">Ver detalles</a>';
+      html += '  </div>';
+      html += '  <video controls autoplay muted loop playsinline preload="metadata">';
+      html += '    <source src="' + juego.video + '" type="video/mp4">';
+      html += '  </video>';
+      html += '</div>';
+    }
+    document.getElementById("listaJuegos").innerHTML = html;
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nueva contraseña - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <div class="barra-auth">
+    <div class="logo">MARVEL</div>
+    <div class="titulo-centro">JAC MARVEL</div>
+    <div class="enlaces"><a href="index.html">Home</a><a href="#">Contact Us</a></div>
+  </div>
+
+  <div class="pantalla-centrada" style="background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('img/fondo_marvel.jpg');">
+    <form class="caja-auth" id="formRestablecer" style="text-align:center;">
+      <h2>Crea tu nueva contraseña</h2>
+      <input type="password" id="clave" placeholder="Nueva contraseña (mínimo 6 caracteres)" minlength="6" required>
+      <input type="password" id="clave2" placeholder="Repite la contraseña" minlength="6" required>
+      <button class="boton-rojo" type="submit">Cambiar contraseña</button>
+      <div class="enlaces-caja"><a href="recuperar.html">Pedir un enlace nuevo</a></div>
+    </form>
+  </div>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    const token = new URLSearchParams(location.search).get("token") || "";
+    document.getElementById("formRestablecer").addEventListener("submit", async function (evento) {
+      evento.preventDefault();
+      const clave = document.getElementById("clave").value;
+      if (clave !== document.getElementById("clave2").value) {
+        alert("Las contraseñas no coinciden");
+        return;
+      }
+      const r = await api("/api/restablecer", "POST", { token: token, clave: clave });
+      if (!r.ok) {
+        alert(r.error || "No se pudo cambiar la contraseña");
+        return;
+      }
+      alert("Contraseña cambiada. Ya puedes iniciar sesión.");
+      location.href = "index.html";
+    });
+  </script>
+</body>
+</html>

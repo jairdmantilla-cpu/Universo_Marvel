@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marvel Hub</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="menu"></div>
+
+  <!-- Banner -->
+  <div class="banner">
+    <img src="img/fondo_inicio.jpg" alt="Personajes de Marvel">
+  </div>
+
+  <!-- Marca -->
+  <div class="marca">
+    <img src="img/logo_marvel_comics.png" alt="Marvel Comics">
+    <div>
+      <h3>MARVEL COMICS</h3>
+      <span class="saludo" id="saludo"></span>
+    </div>
+  </div>
+
+  <!-- Cómics -->
+  <div class="contenido">
+    <h2>Cómics destacados</h2>
+    <div class="comics-fila" id="listaComics"></div>
+  </div>
+
+  <!-- Accesos rápidos -->
+  <div class="contenido">
+    <h2>Explora el universo</h2>
+    <div class="accesos">
+      <a class="acceso" href="cronologia.html"><b>🎬</b>Cronología UCM</a>
+      <a class="acceso" href="personajes.html"><b>🃏</b>Cartas de personajes</a>
+      <a class="acceso" href="juegos.html"><b>🎮</b>Videojuegos</a>
+      <a class="acceso" href="tienda.html"><b>🛒</b>Tienda</a>
+    </div>
+  </div>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    const sesion = obtenerSesion();
+    cargarMenu("inicio.html");
+    document.getElementById("saludo").textContent = sesion ? "Bienvenido, " + (sesion.usuario.nombre || sesion.usuario.correo) : "Explora el universo Marvel";
+
+    // Dibujamos una tarjeta por cada cómic
+    let html = "";
+    for (let i = 0; i < comics.length; i++) {
+      const comic = comics[i];
+      html += '<div class="comic">';
+      html += '  <a href="comic.html?id=' + comic.id + '"><img src="' + comic.imagen + '" alt=""></a>';
+      html += '  <p>' + comic.titulo + '</p>';
+      html += '</div>';
+    }
+    document.getElementById("listaComics").innerHTML = html;
+  </script>
+</body>
+</html>

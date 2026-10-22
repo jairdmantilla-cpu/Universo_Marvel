@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cronología Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body style="background:#111;">
+  <div id="menu"></div>
+
+  <div class="titulo-pagina">
+    <a class="boton-rojo" href="inicio.html">Regresar</a>
+    <h1 style="font-size: 34px; margin-top: 30px;">Cronología del Universo Cinematográfico de Marvel</h1>
+    <p style="color:#bbb;">Haz clic en un evento para ver más información</p>
+  </div>
+
+  <div class="linea" id="lineaTiempo"></div>
+
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <script>
+    cargarMenu("cronologia.html");
+
+    // Los eventos con lado "left" van a la izquierda y los demás a la derecha
+    let html = "";
+    for (let i = 0; i < cronologia.length; i++) {
+      const evento = cronologia[i];
+      let lado = "derecha";
+      if (evento.lado === "left") {
+        lado = "izquierda";
+      }
+      html += '<div class="evento ' + lado + '">';
+      html += '  <div class="evento-tarjeta" onclick="mostrar(this)">';
+      html += '    <div class="texto">';
+      html += '      <h2>' + evento.titulo + '</h2>';
+      html += '      <p>' + evento.subtitulo + '</p>';
+      html += '      <div class="detalle-evento">';
+      html += '        <p><b>Año:</b> ' + evento.anio + '</p>';
+      html += '        <p><b>Protagonistas:</b> ' + evento.protagonistas + '</p>';
+      html += '        <p><b>' + evento.etiquetaConexion + ':</b> ' + evento.conexion + '</p>';
+      html += '      </div>';
+      html += '    </div>';
+      html += '    <img src="' + evento.imagen + '" alt="">';
+      html += '  </div>';
+      html += '</div>';
+    }
+    document.getElementById("lineaTiempo").innerHTML = html;
+
+    // Muestra u oculta el detalle del evento
+    function mostrar(tarjeta) {
+      const detalle = tarjeta.querySelector(".detalle-evento");
+      if (detalle.style.display === "block") {
+        detalle.style.display = "none";
+      } else {
+        detalle.style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>
