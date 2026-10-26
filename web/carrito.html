@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carrito - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Menú de arriba (lo dibuja comun.js) -->
+  <div id="menu"></div>
+
+  <!-- Carrito y resumen del total -->
+  <div class="contenido">
+    <h1>Carrito</h1>
+    <p class="gris" id="carritoVacio" style="display:none;">Tu carrito está vacío. <a href="tienda.html"><u>Ir a la tienda</u></a></p>
+
+    <div class="fila" id="zonaCarrito">
+      <div style="flex: 2; min-width: 280px;">
+        <div id="listaCarrito"></div>
+        <button onclick="vaciarCarrito()">Vaciar carrito</button>
+      </div>
+      <div class="tarjeta" style="flex: 1; min-width: 240px;">
+        <h3>Resumen</h3>
+        <p>Total: <span class="precio" id="total"></span></p>
+        <button class="boton-rojo" style="width: 100%;" onclick="abrirPago()">Continuar con el pago</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ventana emergente del pago -->
+  <div class="fondo-modal oculto" id="modalPago">
+    <form class="ventana" id="formPago">
+      <h2>Método de pago</h2>
+      <label>Número de tarjeta <input type="text" id="numero" inputmode="numeric" maxlength="19" required></label>
+      <label>Vencimiento (MM/AA) <input type="text" id="vencimiento" placeholder="MM/AA" maxlength="5" required></label>
+      <label>Titular <input type="text" id="titular" required></label>
+      <label>Emisor
+        <select id="emisor">
+          <option>Visa</option>
+          <option>Mastercard</option>
+          <option>American Express</option>
+        </select>
+      </label>
+      <label>CVV <input type="password" id="cvv" inputmode="numeric" maxlength="4" required></label>
+      <button class="boton-rojo" type="submit">Confirmar pago</button>
+      <button type="button" onclick="cerrarPago()">Cancelar</button>
+    </form>
+  </div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    exigirSesion();
+
+    // Dibuja los productos del carrito y calcula el total
+    function dibujarCarrito() {
+      cargarMenu("carrito.html");
+      const carrito = leer("carrito", []);
+
+      if (carrito.length === 0) {
+        document.getElementById("zonaCarrito").style.display = "none";
+        document.getElementById("carritoVacio").style.display = "block";
+        return;
+      }
+
+      let html = "";
+      let total = 0;
+      for (let i = 0; i < carrito.length; i++) {
+        const producto = buscarPorId(productos, carrito[i].id);
+        const cantidad = carrito[i].cantidad;
+        const subtotal = producto.precio * cantidad;
+        total += subtotal;
+
+        // El botón "+" se apaga cuando ya llegamos al stock
+        let apagarMas = "";
+        if (cantidad >= stockDisponible(producto)) {
+          apagarMas = "disabled";
+        }
+
+        html += '<div class="tarjeta producto-carrito">';
+        html += '  <img src="' + producto.imagen + '" alt="">';
+        html += '  <div style="flex: 1;">';
+        html += '    <h4>' + producto.nombre + '</h4>';
+        html += '    <p>' + dinero(producto.precio) + '</p>';
+        html += '    <button onclick="restar(' + producto.id + ')">−</button> ';
+        html += '    <b>' + cantidad + '</b> ';
+        html += '    <button onclick="sumar(' + producto.id + ')" ' + apagarMas + '>+</button> ';
+        html += '    <button onclick="quitar(' + producto.id + ')">Eliminar</button>';
+        html += '  </div>';
+        html += '  <b>' + dinero(subtotal) + '</b>';
+        html += '</div>';
+      }
+      document.getElementById("listaCarrito").innerHTML = html;
+      document.getElementById("total").textContent = dinero(total);
+    }
+
+    function sumar(id) {
+      const carrito = leer("carrito", []);
+      const producto = buscarPorId(productos, id);
+      for (let i = 0; i < carrito.length; i++) {
+        if (carrito[i].id === id && carrito[i].cantidad < stockDisponible(producto)) {
+          carrito[i].cantidad++;
+        }
+      }
+      guardar("carrito", carrito);
+      dibujarCarrito();
+    }
+
+    function restar(id) {
+      let carrito = leer("carrito", []);
+      for (let i = 0; i < carrito.length; i++) {
+        if (carrito[i].id === id) {
+          carrito[i].cantidad--;
+        }
+      }
+      // Quitamos los productos que quedaron en 0
+      carrito = carrito.filter(function (item) { return item.cantidad > 0; });
+      guardar("carrito", carrito);
+      dibujarCarrito();
+    }
+
+    function quitar(id) {
+      let carrito = leer("carrito", []);
+      carrito = carrito.filter(function (item) { return item.id !== id; });
+      guardar("carrito", carrito);
+      dibujarCarrito();
+    }
+
+    function vaciarCarrito() {
+      if (confirm("¿Vaciar el carrito?")) {
+        guardar("carrito", []);
+        dibujarCarrito();
+      }
+    }
+
+    function abrirPago() {
+      document.getElementById("modalPago").classList.remove("oculto");
+    }
+
+    function cerrarPago() {
+      document.getElementById("modalPago").classList.add("oculto");
+    }
+
+    // Cuando el usuario confirma el pago
+    document.getElementById("formPago").addEventListener("submit", function (evento) {
+      evento.preventDefault();
+      const numero = document.getElementById("numero").value;
+      const vencimiento = document.getElementById("vencimiento").value;
+      const cvv = document.getElementById("cvv").value;
+
+      if (!tarjetaValida(numero, vencimiento, cvv)) {
+        return;
+      }
+
+      const carrito = leer("carrito", []);
+      const vendidos = leer("vendidos", {});
+      const sesion = obtenerSesion();
+      const lineas = [];
+      let total = 0;
+
+      // Recorremos el carrito: sumamos lo vendido (baja el stock) y armamos el detalle de la venta
+      for (let i = 0; i < carrito.length; i++) {
+        const producto = buscarPorId(productos, carrito[i].id);
+        const cantidad = carrito[i].cantidad;
+        vendidos[producto.id] = (vendidos[producto.id] || 0) + cantidad;
+        lineas.push({ nombre: producto.nombre, cantidad: cantidad, precio: producto.precio });
+        total += producto.precio * cantidad;
+      }
+
+      // Guardamos la venta (OJO: nunca se guarda el número de la tarjeta)
+      const ventas = leer("ventas", []);
+      ventas.push({
+        id: "V" + Date.now(),
+        cliente: sesion.usuario.nombre || sesion.usuario.correo,
+        correo: sesion.usuario.correo,
+        productos: lineas,
+        total: Number(total.toFixed(2)),
+        fecha: fechaHoy(),
+        estado: "pendiente"
+      });
+      guardar("ventas", ventas);
+      guardar("vendidos", vendidos);
+      guardar("carrito", []);
+
+      alert("¡Compra realizada! Tu pedido llegará en 5 a 7 días hábiles.");
+      location.href = "inicio.html";
+    });
+
+    dibujarCarrito();
+  </script>
+</body>
+</html>

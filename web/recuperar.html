@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recuperar contraseña - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <!-- Barra de arriba -->
+  <div class="barra-auth">
+    <div class="logo">MARVEL</div>
+    <div class="titulo-centro">JAC MARVEL</div>
+    <div class="enlaces"><a href="index.html">Home</a><a href="#">Contact Us</a></div>
+  </div>
+
+  <!-- Formulario para pedir el enlace por correo -->
+  <div class="pantalla-centrada" style="background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('img/fondo_marvel.jpg');">
+    <form class="caja-auth" id="formRecuperar" style="text-align:center;">
+      <h2>¿Olvidaste tu contraseña?</h2>
+      <p>Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva.</p>
+      <input type="email" id="correo" placeholder="Correo electrónico" required>
+      <button class="boton-rojo" type="submit">Enviar</button>
+      <div class="enlaces-caja"><a href="index.html">Regresar al login</a></div>
+    </form>
+  </div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    async function enviarRecuperacion(correo) {
+      const r = await api("/api/recuperar", "POST", { correo: correo });
+      alert(r.mensaje || r.error || "No se pudo procesar la solicitud");
+    }
+    document.getElementById("formRecuperar").addEventListener("submit", function (evento) {
+      evento.preventDefault();
+      enviarRecuperacion(document.getElementById("correo").value.trim());
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crear cuenta - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <!-- Barra de arriba -->
+  <div class="barra-auth">
+    <div class="logo">MARVEL</div>
+    <div class="titulo-centro">JAC MARVEL</div>
+    <div class="enlaces"><a href="index.html">Home</a><a href="#">Contact Us</a></div>
+  </div>
+
+  <!-- Formulario para crear la cuenta -->
+  <div class="registro">
+    <div class="izquierda">
+      <form class="caja-auth" id="formRegistro">
+        <h2>Crear cuenta</h2>
+        <label>Nombre <input type="text" id="nombre" required></label>
+        <label>Correo <input type="email" id="correo" required></label>
+        <label>Contraseña (mínimo 6 caracteres) <input type="password" id="clave" minlength="6" required></label>
+        <button class="boton-rojo" type="submit">Registrarme</button>
+        <div class="enlaces-caja">¿Ya tienes cuenta? <a href="index.html" style="display:inline; color:#c40000;">Inicia sesión</a></div>
+      </form>
+    </div>
+    <!-- Imagen de fondo -->
+    <div class="derecha" style="background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('img/fondo_marvel.jpg');"></div>
+  </div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    document.getElementById("formRegistro").addEventListener("submit", async function (evento) {
+      evento.preventDefault();
+      const r = await api("/api/registro", "POST", {
+        nombre: document.getElementById("nombre").value.trim(),
+        correo: document.getElementById("correo").value.trim(),
+        clave: document.getElementById("clave").value
+      });
+      if (!r.ok) {
+        alert(r.error || "No se pudo crear la cuenta");
+        return;
+      }
+      // La cuenta queda con sesión iniciada: volvemos a donde estaba o al inicio
+      const siguiente = new URLSearchParams(location.search).get("siguiente");
+      if (siguiente && /^[\w-]+\.html(\?[\w=&.-]*)?$/.test(siguiente)) {
+        location.href = siguiente;
+      } else {
+        location.href = "inicio.html";
+      }
+    });
+  </script>
+</body>
+</html>

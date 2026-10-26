@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración - Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Menú de arriba (lo dibuja comun.js) -->
+  <div id="menu"></div>
+
+  <!-- Panel del administrador -->
+  <div class="contenido">
+    <h1>Panel de administración <small class="gris" id="tipoAdmin"></small></h1>
+
+    <!-- Usuarios registrados -->
+    <h2>Usuarios</h2>
+    <form class="tarjeta fila" id="formUsuario">
+      <input type="text" id="nuevoNombre" placeholder="Nombre" required style="flex: 1;">
+      <input type="email" id="nuevoCorreo" placeholder="Correo" required style="flex: 1;">
+      <input type="text" id="nuevaClave" placeholder="Contraseña" required style="flex: 1;">
+      <button class="boton-rojo" type="submit">Crear usuario</button>
+    </form>
+    <div id="tablaUsuarios"></div>
+
+    <!-- Productos de la tienda: precio, stock y datos -->
+    <h2>Productos</h2>
+    <p>
+      <button class="boton-rojo" onclick="abrirEditor('productos', -1)">Agregar producto</button>
+      <button onclick="restaurar('productos')">Restaurar originales</button>
+    </p>
+    <div class="tabla-scroll" id="tablaProductos"></div>
+
+    <!-- Resto del contenido del sitio -->
+    <h2>Contenido del sitio</h2>
+    <label>Qué quieres editar
+      <select id="tipoContenido" onchange="dibujarContenido()" style="width: 260px;">
+        <option value="comics">Cómics</option>
+        <option value="personajes">Personajes</option>
+        <option value="juegos">Juegos</option>
+        <option value="cronologia">Cronología UCM</option>
+        <option value="planes">Planes de suscripción</option>
+      </select>
+    </label>
+    <div id="listaContenido"></div>
+    <p class="gris">Los cambios se guardan en este navegador. Para dejarlos fijos para todos los visitantes, descarga el archivo y reemplaza js/datos.js.</p>
+    <button class="boton-rojo" onclick="descargarDatos()">Descargar datos.js</button>
+
+    <!-- Ventas y suscripciones -->
+    <div id="seccionVentas">
+      <h2>Ventas</h2>
+      <div class="estadisticas" id="estadisticas"></div>
+      <div class="tabla-scroll" id="tablaVentas"></div>
+
+      <h2>Suscripciones</h2>
+      <div class="tabla-scroll" id="tablaSuscripciones"></div>
+    </div>
+  </div>
+
+  <!-- Ventana emergente: editar o agregar un elemento -->
+  <div class="fondo-modal oculto" id="modalEditor" onclick="cerrarEditor()">
+    <div class="ventana" onclick="event.stopPropagation()" style="max-height: 85vh; overflow: auto;">
+      <h2 id="tituloEditor"></h2>
+      <div id="camposEditor"></div>
+      <br>
+      <button class="boton-rojo" onclick="guardarEditor()">Guardar</button>
+      <button onclick="cerrarEditor()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Ventana emergente: detalle de una venta -->
+  <div class="fondo-modal oculto" id="modalVenta" onclick="cerrarVenta()">
+    <div class="ventana" onclick="event.stopPropagation()">
+      <div id="detalleVenta"></div>
+      <br>
+      <button onclick="cerrarVenta()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    const sesion = exigirSesion();
+    cargarMenu("admin.html");
+
+    // Solo entra el administrador
+    if (sesion.rol !== "admin") {
+      alert("Acceso denegado");
+      location.href = "inicio.html";
+    }
+    document.getElementById("tipoAdmin").textContent = "(" + sesion.usuario.correo + ")";
+
+    const estadosVenta = ["pendiente", "completada", "cancelada"];
+    const estadosSuscripcion = ["activa", "cancelada", "vencida"];
+
+    // Pone la primera letra en mayúscula (pendiente -> Pendiente)
+    function mayuscula(texto) {
+      return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    // Crea un <select> con los estados posibles. Al cambiarlo llama a "funcion"
+    function crearSelectorEstado(opciones, estadoActual, funcion, id) {
+      let html = '<select onchange="' + funcion + "('" + id + "', this.value)\">";
+      for (let i = 0; i < opciones.length; i++) {
+        let seleccionada = "";
+        if (opciones[i] === estadoActual) {
+          seleccionada = "selected";
+        }
+        html += '<option value="' + opciones[i] + '" ' + seleccionada + ">" + mayuscula(opciones[i]) + "</option>";
+      }
+      return html + "</select>";
+    }
+
+    // USUARIOS (vienen de MySQL)
+    async function dibujarUsuarios() {
+      const r = await api("/api/admin/usuarios");
+      const cuadro = document.getElementById("tablaUsuarios");
+      if (!r.ok) {
+        cuadro.innerHTML = '<p class="gris">' + escapar(r.error || "No se pudo cargar la lista") + "</p>";
+        return;
+      }
+      if (r.usuarios.length === 0) {
+        cuadro.innerHTML = '<p class="gris">No hay usuarios registrados.</p>';
+        return;
+      }
+      let html = "<table><tr><th>Nombre</th><th>Correo</th><th></th></tr>";
+      for (let i = 0; i < r.usuarios.length; i++) {
+        const u = r.usuarios[i];
+        html += "<tr>";
+        html += "<td>" + escapar(u.nombre) + "</td>";
+        html += "<td>" + escapar(u.correo) + "</td>";
+        html += '<td><button onclick="eliminarUsuario(' + u.id + ', this.dataset.correo)" data-correo="' + escapar(u.correo) + '">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      cuadro.innerHTML = html + "</table>";
+    }
+
+    document.getElementById("formUsuario").addEventListener("submit", async function (evento) {
+      evento.preventDefault();
+      const r = await api("/api/admin/usuarios", "POST", {
+        nombre: document.getElementById("nuevoNombre").value.trim(),
+        correo: document.getElementById("nuevoCorreo").value.trim(),
+        clave: document.getElementById("nuevaClave").value
+      });
+      if (!r.ok) {
+        alert(r.error || "No se pudo crear el usuario");
+        return;
+      }
+      document.getElementById("formUsuario").reset();
+      dibujarUsuarios();
+    });
+
+    async function eliminarUsuario(id, correo) {
+      if (confirm("¿Eliminar al usuario " + correo + "?")) {
+        await api("/api/admin/usuarios/" + id, "DELETE");
+        dibujarUsuarios();
+      }
+    }
+
+    // Contenido: lo que se puede editar y qué campo sirve de título
+    const colecciones = {
+      productos: "nombre",
+      comics: "titulo",
+      personajes: "nombre",
+      juegos: "titulo",
+      cronologia: "titulo",
+      planes: "nombre"
+    };
+    let editando = { nombre: "", posicion: -1 };
+
+    // Lista actual: la guardada por el administrador o la original de datos.js
+    function listaDe(nombre) {
+      return leer("datos_" + nombre, datosPorDefecto[nombre]);
+    }
+
+    function guardarLista(nombre, lista) {
+      guardar("datos_" + nombre, lista);
+    }
+
+    // Tabla de productos con precio y stock editables en la misma fila
+    function dibujarProductos() {
+      const lista = listaDe("productos");
+      let html = "<table><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock disponible</th><th></th></tr>";
+      for (let i = 0; i < lista.length; i++) {
+        const p = lista[i];
+        html += "<tr>";
+        html += "<td>" + escapar(p.nombre) + "</td>";
+        html += "<td>" + escapar(p.categoria) + "</td>";
+        html += '<td><input type="number" step="0.01" min="0" id="precio' + i + '" value="' + p.precio + '" style="width: 90px;"></td>';
+        html += '<td><input type="number" min="0" id="stock' + i + '" value="' + stockDisponible(p) + '" style="width: 80px;"></td>';
+        html += '<td><button onclick="guardarFila(' + i + ')">Guardar</button> ';
+        html += '<button onclick="abrirEditor(\'productos\', ' + i + ')">Editar</button> ';
+        html += '<button onclick="eliminarItem(\'productos\', ' + i + ')">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      document.getElementById("tablaProductos").innerHTML = html + "</table>";
+    }
+
+    // Guarda el precio y el stock de una fila de la tabla
+    function guardarFila(i) {
+      const lista = listaDe("productos");
+      const precio = Number(document.getElementById("precio" + i).value);
+      const stock = parseInt(document.getElementById("stock" + i).value, 10);
+      if (isNaN(precio) || precio < 0 || isNaN(stock) || stock < 0) {
+        alert("Revisa el precio y el stock");
+        return;
+      }
+      lista[i].precio = precio;
+      // El stock guardado es lo disponible que se quiere + lo que ya se vendió
+      lista[i].stock = stock + (leer("vendidos", {})[lista[i].id] || 0);
+      guardarLista("productos", lista);
+      alert("Producto actualizado");
+    }
+
+    // Lista de cómics, personajes, juegos, cronología o planes
+    function dibujarContenido() {
+      const nombre = document.getElementById("tipoContenido").value;
+      const lista = listaDe(nombre);
+      let html = '<p><button class="boton-rojo" onclick="abrirEditor(\'' + nombre + '\', -1)">Agregar</button> ';
+      html += '<button onclick="restaurar(\'' + nombre + '\')">Restaurar originales</button></p>';
+      for (let i = 0; i < lista.length; i++) {
+        html += '<div class="tarjeta">' + escapar(String(lista[i][colecciones[nombre]]));
+        html += ' <span style="float: right;"><button onclick="abrirEditor(\'' + nombre + '\', ' + i + ')">Editar</button> ';
+        html += '<button onclick="eliminarItem(\'' + nombre + '\', ' + i + ')">Eliminar</button></span></div>';
+      }
+      document.getElementById("listaContenido").innerHTML = html;
+    }
+
+    function redibujar(nombre) {
+      if (nombre === "productos") {
+        dibujarProductos();
+      } else {
+        dibujarContenido();
+      }
+    }
+
+    function eliminarItem(nombre, posicion) {
+      if (!confirm("¿Eliminar este elemento?")) {
+        return;
+      }
+      const lista = listaDe(nombre);
+      lista.splice(posicion, 1);
+      guardarLista(nombre, lista);
+      redibujar(nombre);
+    }
+
+    // Borra los cambios del administrador y vuelve a los datos de datos.js
+    function restaurar(nombre) {
+      if (confirm("¿Volver a los datos originales?")) {
+        localStorage.removeItem("datos_" + nombre);
+        redibujar(nombre);
+      }
+    }
+
+    // Elemento nuevo con los mismos campos que el primero de la lista, vacíos
+    function itemVacio(lista) {
+      const nuevo = {};
+      const modelo = lista[0] || {};
+      const claves = Object.keys(modelo);
+      for (let i = 0; i < claves.length; i++) {
+        const valor = modelo[claves[i]];
+        if (typeof valor === "number") { nuevo[claves[i]] = 0; }
+        else if (Array.isArray(valor)) { nuevo[claves[i]] = []; }
+        else if (typeof valor === "object") { nuevo[claves[i]] = {}; }
+        else { nuevo[claves[i]] = ""; }
+      }
+      if ("id" in nuevo) {
+        let mayor = 0;
+        for (let i = 0; i < lista.length; i++) {
+          mayor = Math.max(mayor, Number(lista[i].id) || 0);
+        }
+        nuevo.id = mayor + 1;
+      }
+      return nuevo;
+    }
+
+    // Abre la ventana con un campo por cada dato del elemento (posicion -1 = nuevo)
+    function abrirEditor(nombre, posicion) {
+      const lista = listaDe(nombre);
+      const item = posicion >= 0 ? lista[posicion] : itemVacio(lista);
+      editando = { nombre: nombre, posicion: posicion };
+      document.getElementById("tituloEditor").textContent = posicion >= 0 ? "Editar" : "Agregar";
+
+      let html = "";
+      const claves = Object.keys(item);
+      for (let i = 0; i < claves.length; i++) {
+        const clave = claves[i];
+        let valor = item[clave];
+        let etiqueta = clave;
+        if (nombre === "productos" && clave === "stock") {
+          etiqueta = "stock disponible";
+          if (posicion >= 0) { valor = stockDisponible(item); }
+        }
+        const atributos = ' data-clave="' + clave + '" style="width: 100%;"';
+        html += "<label>" + etiqueta;
+        if (typeof valor === "object") {
+          html += '<textarea rows="3" data-tipo="json"' + atributos + ">" + escapar(JSON.stringify(valor)) + "</textarea>";
+        } else if (typeof valor === "number") {
+          html += '<input type="number" step="any" data-tipo="number"' + atributos + ' value="' + valor + '">';
+        } else if (String(valor).length > 80) {
+          html += '<textarea rows="4" data-tipo="texto"' + atributos + ">" + escapar(String(valor)) + "</textarea>";
+        } else {
+          html += '<input type="text" data-tipo="texto"' + atributos + ' value="' + escapar(String(valor)) + '">';
+        }
+        html += "</label>";
+      }
+      document.getElementById("camposEditor").innerHTML = html;
+      document.getElementById("modalEditor").classList.remove("oculto");
+    }
+
+    function cerrarEditor() {
+      document.getElementById("modalEditor").classList.add("oculto");
+    }
+
+    // Lee los campos de la ventana y guarda el elemento
+    function guardarEditor() {
+      const nombre = editando.nombre;
+      const lista = listaDe(nombre);
+      const nuevo = {};
+      const campos = document.querySelectorAll("#camposEditor [data-clave]");
+      for (let i = 0; i < campos.length; i++) {
+        const clave = campos[i].dataset.clave;
+        let valor = campos[i].value;
+        if (campos[i].dataset.tipo === "number") {
+          valor = Number(valor);
+          if (isNaN(valor)) {
+            alert("'" + clave + "' debe ser un número");
+            return;
+          }
+        }
+        if (campos[i].dataset.tipo === "json") {
+          try {
+            valor = JSON.parse(valor);
+          } catch (error) {
+            alert("'" + clave + "' no tiene un formato válido");
+            return;
+          }
+        }
+        nuevo[clave] = valor;
+      }
+      if (String(nuevo[colecciones[nombre]]).trim() === "") {
+        alert("Escribe el campo '" + colecciones[nombre] + "'");
+        return;
+      }
+      // En productos el stock guardado = disponible + vendido
+      if (nombre === "productos" && editando.posicion >= 0) {
+        nuevo.stock += leer("vendidos", {})[nuevo.id] || 0;
+      }
+      if (editando.posicion >= 0) {
+        lista[editando.posicion] = nuevo;
+      } else {
+        lista.push(nuevo);
+      }
+      guardarLista(nombre, lista);
+      cerrarEditor();
+      redibujar(nombre);
+    }
+
+    // Genera un datos.js nuevo con todos los cambios, para subirlo a GitHub
+    function descargarDatos() {
+      const nombres = ["comics", "personajes", "juegos", "cronologia", "productos", "planes"];
+      let texto = "// Datos del sitio (generado desde el panel de administración)\n\n";
+      for (let i = 0; i < nombres.length; i++) {
+        let lista = listaDe(nombres[i]);
+        if (nombres[i] === "productos") {
+          lista = lista.map(function (p) { return Object.assign({}, p, { stock: stockDisponible(p) }); });
+        }
+        texto += "let " + nombres[i] + " = " + JSON.stringify(lista, null, 2) + ";\n\n";
+      }
+      const enlace = document.createElement("a");
+      enlace.href = URL.createObjectURL(new Blob([texto], { type: "text/javascript" }));
+      enlace.download = "datos.js";
+      enlace.click();
+    }
+
+    // VENTAS
+    function dibujarEstadisticas() {
+      const ventas = leer("ventas", []);
+      const suscripciones = leer("suscripciones", []);
+      let ingresos = 0;
+      let pendientes = 0;
+      let activas = 0;
+      for (let i = 0; i < ventas.length; i++) {
+        if (ventas[i].estado === "completada") {
+          ingresos += ventas[i].total;
+        }
+        if (ventas[i].estado === "pendiente") {
+          pendientes++;
+        }
+      }
+      for (let i = 0; i < suscripciones.length; i++) {
+        if (suscripciones[i].estado === "activa") {
+          activas++;
+        }
+      }
+      document.getElementById("estadisticas").innerHTML =
+        '<div class="tarjeta"><b>' + dinero(ingresos) + '</b>Ingresos (completadas)</div>' +
+        '<div class="tarjeta"><b>' + ventas.length + '</b>Ventas</div>' +
+        '<div class="tarjeta"><b>' + pendientes + '</b>Pendientes</div>' +
+        '<div class="tarjeta"><b>' + activas + '</b>Suscripciones activas</div>';
+    }
+
+    function dibujarVentas() {
+      const ventas = leer("ventas", []);
+      let html = "<table><tr><th>ID</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Estado</th><th></th></tr>";
+      for (let i = 0; i < ventas.length; i++) {
+        const v = ventas[i];
+        html += "<tr>";
+        html += "<td>" + v.id + "</td>";
+        html += "<td>" + escapar(v.cliente) + "<br><small class='gris'>" + escapar(v.correo) + "</small></td>";
+        html += "<td>" + dinero(v.total) + "</td>";
+        html += "<td>" + v.fecha + "</td>";
+        html += "<td>" + crearSelectorEstado(estadosVenta, v.estado, "cambiarEstadoVenta", v.id) + "</td>";
+        html += '<td><button onclick="verVenta(\'' + v.id + '\')">Detalle</button> ';
+        html += '<button onclick="eliminarVenta(\'' + v.id + '\')">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      document.getElementById("tablaVentas").innerHTML = html + "</table>";
+    }
+
+    // Si se cancela una venta, sus productos vuelven al stock (y al revés si se reactiva)
+    function ajustarVendidos(venta, signo) {
+      const vendidos = leer("vendidos", {});
+      const lista = listaDe("productos");
+      for (let i = 0; i < venta.productos.length; i++) {
+        for (let j = 0; j < lista.length; j++) {
+          if (lista[j].nombre === venta.productos[i].nombre) {
+            vendidos[lista[j].id] = Math.max(0, (vendidos[lista[j].id] || 0) + signo * venta.productos[i].cantidad);
+          }
+        }
+      }
+      guardar("vendidos", vendidos);
+    }
+
+    function cambiarEstadoVenta(id, estadoNuevo) {
+      const ventas = leer("ventas", []);
+      for (let i = 0; i < ventas.length; i++) {
+        if (ventas[i].id === id) {
+          if (ventas[i].estado !== "cancelada" && estadoNuevo === "cancelada") {
+            ajustarVendidos(ventas[i], -1);
+          }
+          if (ventas[i].estado === "cancelada" && estadoNuevo !== "cancelada") {
+            ajustarVendidos(ventas[i], 1);
+          }
+          ventas[i].estado = estadoNuevo;
+        }
+      }
+      guardar("ventas", ventas);
+      dibujarTodoVentas();
+      dibujarProductos();
+    }
+
+    function eliminarVenta(id) {
+      if (!confirm("¿Eliminar esta venta?")) {
+        return;
+      }
+      const ventas = leer("ventas", []).filter(function (v) { return v.id !== id; });
+      guardar("ventas", ventas);
+      dibujarTodoVentas();
+    }
+
+    function verVenta(id) {
+      const venta = buscarPorId(leer("ventas", []), id);
+      let html = "<h2>Venta " + venta.id + "</h2>";
+      html += "<p>" + escapar(venta.cliente) + " · " + escapar(venta.correo) + "<br>" + venta.fecha + " · " + mayuscula(venta.estado) + "</p>";
+      for (let i = 0; i < venta.productos.length; i++) {
+        const p = venta.productos[i];
+        html += "<p>" + p.nombre + " ×" + p.cantidad + " — " + dinero(p.precio * p.cantidad) + "</p>";
+      }
+      html += "<b>Total: " + dinero(venta.total) + "</b>";
+      document.getElementById("detalleVenta").innerHTML = html;
+      document.getElementById("modalVenta").classList.remove("oculto");
+    }
+
+    function cerrarVenta() {
+      document.getElementById("modalVenta").classList.add("oculto");
+    }
+
+    // SUSCRIPCIONES
+    function dibujarSuscripciones() {
+      const suscripciones = leer("suscripciones", []);
+      let html = "<table><tr><th>ID</th><th>Usuario</th><th>Plan</th><th>Precio</th><th>Inicio</th><th>Estado</th><th></th></tr>";
+      for (let i = 0; i < suscripciones.length; i++) {
+        const s = suscripciones[i];
+        html += "<tr>";
+        html += "<td>" + s.id + "</td>";
+        html += "<td>" + escapar(s.usuario) + "<br><small class='gris'>" + escapar(s.correo) + "</small></td>";
+        html += "<td>" + s.plan + "</td>";
+        html += "<td>" + dinero(s.precio) + "</td>";
+        html += "<td>" + s.inicio + "</td>";
+        html += "<td>" + crearSelectorEstado(estadosSuscripcion, s.estado, "cambiarEstadoSuscripcion", s.id) + "</td>";
+        html += '<td><button onclick="eliminarSuscripcion(\'' + s.id + '\')">Eliminar</button></td>';
+        html += "</tr>";
+      }
+      document.getElementById("tablaSuscripciones").innerHTML = html + "</table>";
+    }
+
+    function cambiarEstadoSuscripcion(id, estadoNuevo) {
+      const suscripciones = leer("suscripciones", []);
+      for (let i = 0; i < suscripciones.length; i++) {
+        if (suscripciones[i].id === id) {
+          suscripciones[i].estado = estadoNuevo;
+        }
+      }
+      guardar("suscripciones", suscripciones);
+      dibujarTodoVentas();
+    }
+
+    function eliminarSuscripcion(id) {
+      if (!confirm("¿Eliminar esta suscripción?")) {
+        return;
+      }
+      const suscripciones = leer("suscripciones", []).filter(function (s) { return s.id !== id; });
+      guardar("suscripciones", suscripciones);
+      dibujarTodoVentas();
+    }
+
+    // Vuelve a dibujar las tres partes de la sección de ventas
+    function dibujarTodoVentas() {
+      dibujarEstadisticas();
+      dibujarVentas();
+      dibujarSuscripciones();
+    }
+
+    // Al abrir la página
+    dibujarUsuarios();
+    dibujarProductos();
+    dibujarContenido();
+    dibujarTodoVentas();
+  </script>
+</body>
+</html>

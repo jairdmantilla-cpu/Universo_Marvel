@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cartas Marvel</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="fondo-claro">
+  <!-- Menú de arriba (lo dibuja comun.js) -->
+  <div id="menu"></div>
+
+  <!-- Botón para regresar -->
+  <div class="titulo-pagina">
+    <a class="boton-rojo" href="inicio.html">Regresar</a>
+  </div>
+  <!-- Contador de cartas -->
+  <div class="contador">Cartas descubiertas: <span id="contador">0</span> de <span id="total"></span></div>
+
+  <!-- Cartas de personajes -->
+  <div class="personajes" id="listaCartas"></div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    cargarMenu("personajes.html");
+
+    // Cartas que el usuario ya descubrió (se guardan en el navegador)
+    const descubiertas = leer("cartas", []);
+
+    // Dibujamos las cartas UNA sola vez; al hacer clic solo se cambia la clase "volteada"
+    let html = "";
+    for (let i = 0; i < personajes.length; i++) {
+      const p = personajes[i];
+      let clase = "carta";
+      if (descubiertas.includes(p.clave)) {
+        clase = "carta volteada";
+      }
+      html += '<div class="' + clase + '" onclick="voltear(this, \'' + p.clave + '\')">';
+      html += '  <div class="carta-interior">';
+      html += '    <div class="carta-frente">';
+      html += '      <span class="rareza ' + p.rareza + '">' + p.rarezaTexto + '</span>';
+      html += '      <img src="' + p.imagen + '" alt="">';
+      html += '      <h3>' + p.nombre + '</h3>';
+      html += '    </div>';
+      html += '    <div class="carta-atras">';
+      html += '      <p><b>Nombre:</b> ' + p.nombreReal + '</p>';
+      html += '      <p><b>Afiliación:</b> ' + p.afiliacion + '</p>';
+      html += '      <p><b>Poderes:</b> ' + p.poderes + '</p>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '</div>';
+    }
+    document.getElementById("listaCartas").innerHTML = html;
+    document.getElementById("total").textContent = personajes.length;
+
+    function actualizarContador() {
+      document.getElementById("contador").textContent = descubiertas.length;
+    }
+
+    function voltear(elemento, clave) {
+      elemento.classList.toggle("volteada");
+      if (!descubiertas.includes(clave)) {
+        descubiertas.push(clave);
+        guardar("cartas", descubiertas);
+        actualizarContador();
+      }
+    }
+
+    actualizarContador();
+  </script>
+</body>
+</html>

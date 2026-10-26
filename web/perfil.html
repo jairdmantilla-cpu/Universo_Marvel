@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perfil de Usuario</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Menú de arriba (lo dibuja comun.js) -->
+  <div id="menu"></div>
+
+  <!-- Imagen de cabecera -->
+  <div class="cabecera-perfil" style="background-image: url('img/fondo_perfil.jpg');"></div>
+
+  <!-- Tarjeta con los datos del usuario -->
+  <div class="contenedor-perfil">
+    <div class="perfil-box">
+      <div class="arriba">
+        <img class="foto-perfil" id="foto" src="img/usuario.svg" alt="Foto de perfil">
+        <div>
+          <h2 id="nombre"></h2>
+          <label class="link">
+            Cambiar foto
+            <input type="file" accept="image/*" onchange="cambiarFoto(event)">
+          </label>
+        </div>
+      </div>
+
+      <div class="datos">
+        <p><b>Correo de usuario:</b> <span id="correo"></span></p>
+        <p><b>Contraseña:</b> <span id="clave" class="clave-oculta">******</span></p>
+      </div>
+
+      <div class="acciones">
+        <button onclick="cambiarNombre()">Cambiar nombre</button>
+        <button onclick="cambiarCorreo()">Cambiar correo</button>
+        <button onclick="cambiarClave()">Cambiar contraseña</button>
+      </div>
+      <p style="text-align: right;"><a class="boton-rojo" href="inicio.html">Regresar</a></p>
+    </div>
+  </div>
+
+  <!-- Planes, suscripciones y compras -->
+  <div class="perfil-extra">
+    <div class="bloque">
+      <h2>Planes de suscripción</h2>
+      <div class="rejilla" id="listaPlanes"></div>
+    </div>
+    <div class="bloque">
+      <h2>Mis suscripciones</h2>
+      <div id="misSuscripciones"></div>
+    </div>
+    <div class="bloque">
+      <h2>Mis compras</h2>
+      <div id="misCompras"></div>
+    </div>
+  </div>
+
+  <!-- Ventana emergente para pagar la suscripción -->
+  <div class="fondo-modal oculto" id="modalSuscripcion">
+    <form class="ventana" id="formSuscripcion">
+      <h2 id="tituloPlan"></h2>
+      <p class="gris" id="precioPlan"></p>
+      <label>Número de tarjeta <input type="text" id="numero" inputmode="numeric" maxlength="19" required></label>
+      <label>Vencimiento (MM/AA) <input type="text" id="vencimiento" placeholder="MM/AA" maxlength="5" required></label>
+      <label>Titular <input type="text" id="titular" required></label>
+      <label>Emisor
+        <select id="emisor">
+          <option>Visa</option>
+          <option>Mastercard</option>
+          <option>American Express</option>
+        </select>
+      </label>
+      <label>CVV <input type="password" id="cvv" inputmode="numeric" maxlength="4" required></label>
+      <button class="boton-rojo" type="submit">Pagar suscripción</button>
+      <button type="button" onclick="cerrarSuscripcion()">Cancelar</button>
+    </form>
+  </div>
+
+  <!-- Datos, sesión y funciones del sitio -->
+  <script src="js/datos.js"></script>
+  <script src="/sesion.js"></script>
+  <script src="js/comun.js"></script>
+  <!-- Código de esta página -->
+  <script>
+    const sesion = exigirSesion();
+    cargarMenu("perfil.html");
+    let planElegido = null;
+    let claveVisible = false;
+
+    // ---------- Datos personales ----------
+    function mostrarDatos() {
+      const usuario = sesion.usuario;
+      document.getElementById("nombre").textContent = usuario.nombre || usuario.correo;
+      document.getElementById("correo").textContent = usuario.correo;
+      if (usuario.foto) {
+        document.getElementById("foto").src = usuario.foto;
+      }
+      document.getElementById("clave").textContent = "******";
+      claveVisible = false;
+    }
+
+    // Guarda los cambios del perfil en el servidor (nombre, correo, clave o foto)
+    async function actualizarUsuario(cambios) {
+      const correoViejo = sesion.usuario.correo;
+      const r = await api("/api/perfil", "PUT", cambios);
+      if (!r.ok) {
+        alert(r.error || "No se pudo guardar el cambio");
+        return false;
+      }
+      sesion.usuario = r.usuario;
+
+      // Si cambió el correo, sus compras y suscripciones siguen siendo suyas
+      if (sesion.usuario.correo !== correoViejo) {
+        const ventas = leer("ventas", []);
+        for (let i = 0; i < ventas.length; i++) {
+          if (ventas[i].correo === correoViejo) { ventas[i].correo = sesion.usuario.correo; }
+        }
+        guardar("ventas", ventas);
+        const subs = leer("suscripciones", []);
+        for (let i = 0; i < subs.length; i++) {
+          if (subs[i].correo === correoViejo) { subs[i].correo = sesion.usuario.correo; }
+        }
+        guardar("suscripciones", subs);
+      }
+      mostrarDatos();
+      dibujarSuscripciones();
+      dibujarCompras();
+      return true;
+    }
+
+    function cambiarNombre() {
+      const nuevo = prompt("Nuevo nombre:");
+      if (nuevo && nuevo.trim() !== "") {
+        actualizarUsuario({ nombre: nuevo.trim() });
+      }
+    }
+
+    async function cambiarCorreo() {
+      if (sesion.rol !== "user") {
+        alert("Los administradores no pueden cambiar su correo");
+        return;
+      }
+      const nuevo = prompt("Nuevo correo:");
+      if (!nuevo) {
+        return;
+      }
+      if (await actualizarUsuario({ correo: nuevo.trim() })) {
+        alert("Correo actualizado");
+      }
+    }
+
+    async function cambiarClave() {
+      if (sesion.rol !== "user") {
+        alert("Los administradores no pueden cambiar su contraseña aquí");
+        return;
+      }
+      const actual = prompt("Escribe tu contraseña actual:");
+      if (!actual) {
+        return;
+      }
+      const nueva = prompt("Nueva contraseña (mínimo 6 caracteres):");
+      if (!nueva) {
+        return;
+      }
+      if (await actualizarUsuario({ clave: nueva, clave_actual: actual })) {
+        alert("Contraseña actualizada");
+      }
+    }
+
+    // Foto: se recorta cuadrada y se reduce a 200x200 para que ocupe poco espacio
+    function cambiarFoto(evento) {
+      const archivo = evento.target.files[0];
+      if (!archivo) {
+        return;
+      }
+      const lector = new FileReader();
+      lector.onload = function () {
+        const imagen = new Image();
+        imagen.onload = function () {
+          const lienzo = document.createElement("canvas");
+          lienzo.width = 200;
+          lienzo.height = 200;
+          const lado = Math.min(imagen.width, imagen.height);
+          lienzo.getContext("2d").drawImage(imagen, (imagen.width - lado) / 2, (imagen.height - lado) / 2, lado, lado, 0, 0, 200, 200);
+          actualizarUsuario({ foto: lienzo.toDataURL("image/jpeg", 0.85) });
+        };
+        imagen.src = lector.result;
+      };
+      lector.readAsDataURL(archivo);
+    }
+
+    // ---------- Planes de suscripción ----------
+    function dibujarPlanes() {
+      let html = "";
+      for (let i = 0; i < planes.length; i++) {
+        html += '<div class="tarjeta">';
+        html += '  <h3>' + planes[i].nombre + '</h3>';
+        html += '  <p class="gris">' + planes[i].descripcion + '</p>';
+        html += '  <p class="precio">' + dinero(planes[i].precio) + '/mes</p>';
+        html += '  <button class="boton-rojo" onclick="elegirPlan(' + i + ')">Suscribirme</button>';
+        html += '</div>';
+      }
+      document.getElementById("listaPlanes").innerHTML = html;
+    }
+
+    function elegirPlan(posicion) {
+      planElegido = planes[posicion];
+      document.getElementById("tituloPlan").textContent = "Suscripción " + planElegido.nombre;
+      document.getElementById("precioPlan").textContent = dinero(planElegido.precio) + " al mes";
+      document.getElementById("modalSuscripcion").classList.remove("oculto");
+    }
+
+    function cerrarSuscripcion() {
+      document.getElementById("modalSuscripcion").classList.add("oculto");
+    }
+
+    document.getElementById("formSuscripcion").addEventListener("submit", function (evento) {
+      evento.preventDefault();
+      if (!tarjetaValida(document.getElementById("numero").value, document.getElementById("vencimiento").value, document.getElementById("cvv").value)) {
+        return;
+      }
+
+      // El próximo cobro es dentro de un mes
+      const proximo = new Date();
+      proximo.setMonth(proximo.getMonth() + 1);
+
+      const suscripciones = leer("suscripciones", []);
+      suscripciones.push({
+        id: "S" + Date.now(),
+        usuario: sesion.usuario.nombre || sesion.usuario.correo,
+        correo: sesion.usuario.correo,
+        plan: planElegido.nombre,
+        precio: planElegido.precio,
+        inicio: fechaHoy(),
+        proximoCobro: proximo.toISOString().slice(0, 10),
+        estado: "activa"
+      });
+      guardar("suscripciones", suscripciones);
+
+      document.getElementById("formSuscripcion").reset();
+      cerrarSuscripcion();
+      alert("¡Suscripción activada!");
+      dibujarSuscripciones();
+    });
+
+    // ---------- Mis suscripciones ----------
+    function dibujarSuscripciones() {
+      const todas = leer("suscripciones", []);
+      let html = "";
+      for (let i = 0; i < todas.length; i++) {
+        const sub = todas[i];
+        if (sub.correo !== sesion.usuario.correo) {
+          continue; // solo mostramos las del usuario actual
+        }
+        html += '<div class="tarjeta">';
+        html += sub.plan + ' · ' + dinero(sub.precio) + ' · inicio ' + sub.inicio + ' · próximo cobro ' + sub.proximoCobro;
+        html += ' · <b>' + sub.estado + '</b> ';
+        if (sub.estado === "activa") {
+          html += '<button onclick="cancelarSuscripcion(\'' + sub.id + '\')">Cancelar</button>';
+        }
+        html += '</div>';
+      }
+      if (html === "") {
+        html = '<p class="gris">Aún no tienes suscripciones.</p>';
+      }
+      document.getElementById("misSuscripciones").innerHTML = html;
+    }
+
+    function cancelarSuscripcion(id) {
+      if (!confirm("¿Seguro que quieres cancelar esta suscripción?")) {
+        return;
+      }
+      const todas = leer("suscripciones", []);
+      for (let i = 0; i < todas.length; i++) {
+        if (todas[i].id === id) {
+          todas[i].estado = "cancelada";
+        }
+      }
+      guardar("suscripciones", todas);
+      dibujarSuscripciones();
+    }
+
+    // ---------- Mis compras ----------
+    function dibujarCompras() {
+      const ventas = leer("ventas", []);
+      let html = "";
+      for (let i = 0; i < ventas.length; i++) {
+        const venta = ventas[i];
+        if (venta.correo !== sesion.usuario.correo) {
+          continue;
+        }
+        let nombres = [];
+        for (let j = 0; j < venta.productos.length; j++) {
+          nombres.push(venta.productos[j].nombre + " ×" + venta.productos[j].cantidad);
+        }
+        html += '<div class="tarjeta">';
+        html += '  <b>' + venta.fecha + '</b> · ' + nombres.join(", ") + ' · <span class="precio">' + dinero(venta.total) + '</span> · <b>' + venta.estado + '</b>';
+        html += '</div>';
+      }
+      if (html === "") {
+        html = '<p class="gris">Aún no has hecho compras. <a href="tienda.html"><u>Ir a la tienda</u></a></p>';
+      }
+      document.getElementById("misCompras").innerHTML = html;
+    }
+
+    mostrarDatos();
+    dibujarPlanes();
+    dibujarSuscripciones();
+    dibujarCompras();
+  </script>
+</body>
+</html>
