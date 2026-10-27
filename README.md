@@ -10,6 +10,5 @@ Página de Marvel con Flask, Flask-Login y MySQL (local o en la nube, como Aiven
 
 1. `python -m pip install -r requirements.txt`
 2. Copia `.env.example` como `.env` y llena tus datos.
-3. `python app.py` y abre http://localhost:5001
+3. `python app.py` y abre http://localhost:5001.
 
-No funciona en GitHub Pages porque necesita el servidor. Más detalle en `COMO_FUNCIONA.txt`.
